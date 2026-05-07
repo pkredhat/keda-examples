@@ -1,0 +1,47 @@
+{{- if .Values.demos.postgres.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.pgWorker.name }}-code
+  namespace: {{ .Values.namespace }}
+data:
+  worker.py: |
+    import sys, time
+    sys.path.insert(0, '/tmp/pp')
+    import psycopg2
+
+    PG = 'host={{ .Values.postgres.name }}-svc port={{ .Values.postgres.service.port }} user={{ .Values.postgres.user }} password={{ .Values.postgres.password }} dbname={{ .Values.postgres.database }} sslmode=disable'
+
+    def connect():
+      while True:
+        try:
+          c = psycopg2.connect(PG)
+          c.autocommit = False
+          return c
+        except Exception:
+          time.sleep(3)
+
+    conn = connect()
+    while True:
+      try:
+        cur = conn.cursor()
+        cur.execute("BEGIN")
+        cur.execute("SELECT id FROM jobs WHERE status='pending' LIMIT 1 FOR UPDATE SKIP LOCKED")
+        row = cur.fetchone()
+        if row:
+          job_id = row[0]
+          cur.execute("UPDATE jobs SET status='processing' WHERE id=%s", (job_id,))
+          conn.commit()
+          time.sleep({{ .Values.pgWorker.processingRate }})
+          cur2 = conn.cursor()
+          cur2.execute("UPDATE jobs SET status='done', processed_at=NOW() WHERE id=%s", (job_id,))
+          conn.commit()
+        else:
+          conn.rollback()
+          time.sleep(0.5)
+      except Exception:
+        try: conn.rollback()
+        except: pass
+        time.sleep(1)
+        conn = connect()
+{{- end }}

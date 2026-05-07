@@ -1,0 +1,29 @@
+{{- if .Values.dashboard.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.dashboard.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.dashboard.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.dashboard.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.dashboard.name }}
+    spec:
+      serviceAccountName: {{ .Values.dashboard.name }}
+      containers:
+      - name: {{ .Values.dashboard.name }}
+        image: "{{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}"
+        imagePullPolicy: {{ .Values.dashboard.image.pullPolicy }}
+        env:
+        - name: NAMESPACE
+          value: {{ .Values.namespace }}
+        ports:
+        - containerPort: {{ .Values.dashboard.service.port }}
+        resources:
+{{- toYaml .Values.dashboard.resources | nindent 10 }}
+{{- end }}

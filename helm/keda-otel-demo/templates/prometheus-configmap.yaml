@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.prometheus.name }}-config
+  namespace: {{ .Values.namespace }}
+data:
+  prometheus.yml: |
+    global:
+{{- toYaml .Values.prometheus.config.global | nindent 6 }}
+
+    scrape_configs:
+{{- toYaml .Values.prometheus.config.scrape_configs | nindent 6 }}

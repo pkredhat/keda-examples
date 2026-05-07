@@ -1,0 +1,12 @@
+{{- if .Values.demos.kafka.enabled }}
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: {{ .Values.kafka.topic }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    strimzi.io/cluster: kafka-lag-cluster
+spec:
+  partitions: {{ .Values.kafka.partitions }}
+  replicas: {{ .Values.kafka.replicas }}
+{{- end }}

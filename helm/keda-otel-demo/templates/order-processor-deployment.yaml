@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.orderProcessor.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.orderProcessor.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.orderProcessor.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.orderProcessor.name }}
+    spec:
+      containers:
+      - name: {{ .Values.orderProcessor.name }}
+        image: "{{ .Values.orderProcessor.image.repository }}:{{ .Values.orderProcessor.image.tag }}"
+        imagePullPolicy: {{ .Values.orderProcessor.image.pullPolicy }}
+        env:
+        - name: OTEL_COLLECTOR_ENDPOINT
+          value: "{{ .Values.orderProcessor.env.otelCollectorEndpoint }}"
+        - name: PROCESS_RATE
+          value: "{{ .Values.orderProcessor.env.processRate }}"
+        ports:
+        - containerPort: {{ .Values.orderProcessor.service.port }}
+        livenessProbe:
+{{- toYaml .Values.orderProcessor.livenessProbe | nindent 10 }}
+        readinessProbe:
+{{- toYaml .Values.orderProcessor.readinessProbe | nindent 10 }}
+        resources:
+{{- toYaml .Values.orderProcessor.resources | nindent 10 }}

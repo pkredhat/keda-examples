@@ -1,0 +1,32 @@
+{{- if .Values.loadGenerator.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ .Values.loadGenerator.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  containers:
+  - name: {{ .Values.loadGenerator.name }}
+    image: "{{ .Values.loadGenerator.image.repository }}:{{ .Values.loadGenerator.image.tag }}"
+    imagePullPolicy: {{ .Values.loadGenerator.image.pullPolicy }}
+    command:
+      - sh
+      - -c
+      - |
+        echo "Load generator ready. Use the following commands:"
+        echo ""
+        echo "Generate 100 orders:"
+        echo "  curl -X POST http://{{ .Values.orderProcessor.name }}:{{ .Values.orderProcessor.service.port }}/add-orders -H 'Content-Type: application/json' -d '{\"count\": 100}'"
+        echo ""
+        echo "Generate 500 orders (trigger scaling):"
+        echo "  curl -X POST http://{{ .Values.orderProcessor.name }}:{{ .Values.orderProcessor.service.port }}/add-orders -H 'Content-Type: application/json' -d '{\"count\": 500}'"
+        echo ""
+        echo "Continuous load (run in loop):"
+        echo "  while true; do curl -X POST http://{{ .Values.orderProcessor.name }}:{{ .Values.orderProcessor.service.port }}/add-orders -H 'Content-Type: application/json' -d '{\"count\": 50}'; sleep 5; done"
+        echo ""
+        echo "Check current metrics:"
+        echo "  curl http://{{ .Values.orderProcessor.name }}:{{ .Values.orderProcessor.service.port }}/metrics-info"
+        echo ""
+        tail -f /dev/null
+  restartPolicy: Never
+{{- end }}

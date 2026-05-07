@@ -1,0 +1,50 @@
+{{- if .Values.demos.http.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.httpTarget.name }}-app
+  namespace: {{ .Values.namespace }}
+data:
+  app.py: |
+    import sys, time, random, threading
+    sys.path.insert(0, '/tmp/pypackages')
+    from flask import Flask, jsonify
+
+    app = Flask(__name__)
+    _active = 0
+    _lock   = threading.Lock()
+
+    def _p_reject(active):
+        if active <= 7:
+            return 0.0
+        elif active <= 10:
+            return 0.05 * (active - 7) / 3.0
+        elif active <= 40:
+            return 0.05 + 0.005 * (active - 10)
+        elif active <= 67:
+            return 0.20 + 0.00481 * (active - 40)
+        else:
+            return min(0.95, 0.33 + 0.005 * (active - 67))
+
+    @app.route('/work', methods=['POST'])
+    def work():
+        global _active
+        with _lock:
+            p = _p_reject(_active)
+            if random.random() < p:
+                return 'overloaded', 503
+            _active += 1
+        try:
+            time.sleep(random.uniform(0.5, 1.5))
+        finally:
+            with _lock:
+                _active -= 1
+        return 'ok'
+
+    @app.route('/health')
+    def health():
+        return 'ok'
+
+    if __name__ == '__main__':
+        app.run(host='0.0.0.0', port=8080, threaded=True)
+{{- end }}

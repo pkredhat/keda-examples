@@ -1,0 +1,17 @@
+{{- if .Values.demos.postgres.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.postgres.name }}-init
+  namespace: {{ .Values.namespace }}
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS jobs (
+      id SERIAL PRIMARY KEY,
+      payload TEXT,
+      status VARCHAR(20) DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT NOW(),
+      processed_at TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
+{{- end }}

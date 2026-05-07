@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.orderProcessor.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  type: {{ .Values.orderProcessor.service.type }}
+  selector:
+    app: {{ .Values.orderProcessor.name }}
+  ports:
+    - port: {{ .Values.orderProcessor.service.port }}
+      targetPort: {{ .Values.orderProcessor.service.port }}

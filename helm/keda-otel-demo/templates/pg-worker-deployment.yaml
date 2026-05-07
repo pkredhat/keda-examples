@@ -1,0 +1,46 @@
+{{- if .Values.demos.postgres.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.pgWorker.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.pgWorker.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.pgWorker.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.pgWorker.name }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: {{ .Values.pgWorker.name }}
+          image: {{ .Values.pgWorker.image.repository }}:{{ .Values.pgWorker.image.tag }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          command:
+            - /bin/sh
+            - -c
+            - pip install psycopg2-binary --quiet --target /tmp/pp && PYTHONPATH=/tmp/pp python /app/worker.py
+          volumeMounts:
+            - name: worker-code
+              mountPath: /app
+          resources:
+            limits:
+              memory: {{ .Values.pgWorker.resources.limits.memory }}
+              cpu: {{ .Values.pgWorker.resources.limits.cpu }}
+            requests:
+              memory: {{ .Values.pgWorker.resources.requests.memory }}
+              cpu: {{ .Values.pgWorker.resources.requests.cpu }}
+      volumes:
+        - name: worker-code
+          configMap:
+            name: {{ .Values.pgWorker.name }}-code
+{{- end }}

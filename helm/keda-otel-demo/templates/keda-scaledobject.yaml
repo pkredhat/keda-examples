@@ -1,0 +1,20 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ .Values.keda.scaledObject.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  scaleTargetRef:
+    name: {{ .Values.orderProcessor.name }}
+  minReplicaCount: {{ .Values.keda.scaledObject.minReplicaCount }}
+  maxReplicaCount: {{ .Values.keda.scaledObject.maxReplicaCount }}
+  pollingInterval: {{ .Values.keda.scaledObject.pollingInterval }}
+  cooldownPeriod: {{ .Values.keda.scaledObject.cooldownPeriod }}
+  triggers:
+{{- range .Values.keda.scaledObject.triggers }}
+  - type: {{ .type }}
+    metadata:
+      serverAddress: {{ .serverAddress }}
+      query: {{ .query }}
+      threshold: {{ .threshold | quote }}
+{{- end }}

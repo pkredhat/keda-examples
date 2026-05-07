@@ -1,0 +1,19 @@
+{{- if .Values.demos.kafka.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.kafkaConsumer.name }}-script
+  namespace: {{ .Values.namespace }}
+data:
+  consumer.sh: |
+    #!/bin/sh
+    /opt/kafka/bin/kafka-console-consumer.sh \
+      --bootstrap-server {{ .Values.kafka.bootstrapServers }} \
+      --topic {{ .Values.kafka.topic }} \
+      --group {{ .Values.kafka.consumerGroup }} \
+      --from-beginning \
+      --max-messages 1
+    # Process one message slowly (simulating work)
+    sleep 0.06
+    exec "$0"
+{{- end }}

@@ -1,0 +1,255 @@
+namespace: keda-otel-demo
+
+# Demo feature flags
+demos:
+  otel:
+    enabled: true
+  http:
+    enabled: true
+  postgres:
+    enabled: false  # Requires storage
+  kafka:
+    enabled: false  # Requires Strimzi operator
+
+# OTEL Orders Demo Configuration
+orderProcessor:
+  name: order-processor
+  replicaCount: 1
+  image:
+    repository: order-processor
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+  env:
+    otelCollectorEndpoint: "otel-collector:4317"
+    processRate: "10"
+  resources:
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+otelCollector:
+  name: otel-collector
+  replicaCount: 1
+  image:
+    repository: otel/opentelemetry-collector
+    tag: "0.96.0"
+    pullPolicy: IfNotPresent
+  service:
+    otlpGrpcPort: 4317
+    otlpHttpPort: 4318
+    prometheusPort: 8889
+  resources:
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      batch: {}
+    exporters:
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+      logging:
+        loglevel: debug
+    service:
+      pipelines:
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [prometheus, logging]
+
+prometheus:
+  name: prometheus
+  replicaCount: 1
+  image:
+    repository: prom/prometheus
+    tag: "v2.51.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 9090
+  resources:
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+  config:
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    scrape_configs:
+      - job_name: 'otel-collector'
+        static_configs:
+          - targets: ['otel-collector:8889']
+  retention:
+    time: 1h
+
+keda:
+  scaledObject:
+    name: order-processor-scaler
+    minReplicaCount: 1
+    maxReplicaCount: 10
+    pollingInterval: 30
+    cooldownPeriod: 60
+    triggers:
+      - type: prometheus
+        serverAddress: http://prometheus:9090
+        query: sum(pending_orders)
+        threshold: "50"
+
+loadGenerator:
+  enabled: true
+  name: load-generator
+  image:
+    repository: curlimages/curl
+    tag: "8.7.1"
+    pullPolicy: IfNotPresent
+
+dashboard:
+  enabled: false
+  name: dashboard
+  replicaCount: 1
+  image:
+    repository: dashboard
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8501
+  route:
+    enabled: true
+  resources:
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+
+# HTTP Traffic Demo Configuration
+httpTarget:
+  name: http-target
+  replicaCount: 1
+  maxReplicas: 20
+  image:
+    repository: python
+    tag: "3.11-slim"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+  keda:
+    pollingInterval: 5
+    cooldownPeriod: 30
+    targetValue: 5  # workers per replica
+    metricsApiUrl: "http://dashboard-svc:8501/api/http/keda-metrics"
+
+# Postgres Queue Demo Configuration
+postgres:
+  name: postgres
+  replicaCount: 1
+  image:
+    repository: postgres
+    tag: "15"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 5432
+  storage:
+    type: emptyDir  # or persistentVolumeClaim
+  database: demo
+  user: demo
+  password: demo
+  resources:
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+
+pgWorker:
+  name: pg-worker
+  replicaCount: 1
+  maxReplicas: 10
+  image:
+    repository: python
+    tag: "3.11-slim"
+    pullPolicy: IfNotPresent
+  processingRate: 0.06  # seconds per job
+  resources:
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+  keda:
+    pollingInterval: 5
+    cooldownPeriod: 30
+    targetQueryValue: 50  # pending jobs per replica
+    query: "SELECT COUNT(*) FROM jobs WHERE status='pending'"
+
+# Kafka Lag Demo Configuration
+kafka:
+  bootstrapServers: kafka-lag-cluster-kafka-bootstrap:9092
+  topic: demo-topic
+  consumerGroup: slow-consumer-group
+  partitions: 3
+  replicas: 1
+
+kafkaConsumer:
+  name: kafka-consumer
+  replicaCount: 1
+  maxReplicas: 10
+  image:
+    repository: quay.io/strimzi/kafka
+    tag: "0.51.0-kafka-4.1.0"
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+  keda:
+    pollingInterval: 5
+    cooldownPeriod: 30
+    lagThreshold: 500  # messages per replica

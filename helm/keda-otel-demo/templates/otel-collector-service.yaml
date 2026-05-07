@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.otelCollector.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: {{ .Values.otelCollector.name }}
+  ports:
+    - name: otlp-grpc
+      port: {{ .Values.otelCollector.service.otlpGrpcPort }}
+      targetPort: {{ .Values.otelCollector.service.otlpGrpcPort }}
+    - name: otlp-http
+      port: {{ .Values.otelCollector.service.otlpHttpPort }}
+      targetPort: {{ .Values.otelCollector.service.otlpHttpPort }}
+    - name: prometheus
+      port: {{ .Values.otelCollector.service.prometheusPort }}
+      targetPort: {{ .Values.otelCollector.service.prometheusPort }}

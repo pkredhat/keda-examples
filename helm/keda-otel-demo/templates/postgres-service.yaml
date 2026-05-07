@@ -1,0 +1,13 @@
+{{- if .Values.demos.postgres.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.postgres.name }}-svc
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: {{ .Values.postgres.name }}
+  ports:
+    - port: {{ .Values.postgres.service.port }}
+      targetPort: {{ .Values.postgres.service.port }}
+{{- end }}

@@ -1,0 +1,13 @@
+apiVersion: v2
+name: keda-otel-demo
+description: A Helm chart for KEDA + OpenTelemetry custom metrics autoscaling demo
+type: application
+version: 0.1.0
+appVersion: "1.0"
+keywords:
+  - keda
+  - opentelemetry
+  - autoscaling
+  - prometheus
+maintainers:
+  - name: KEDA OTEL Demo Team

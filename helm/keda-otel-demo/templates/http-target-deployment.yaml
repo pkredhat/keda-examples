@@ -1,0 +1,58 @@
+{{- if .Values.demos.http.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.httpTarget.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.httpTarget.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.httpTarget.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.httpTarget.name }}
+    spec:
+      initContainers:
+        - name: pip-install
+          image: {{ .Values.httpTarget.image.repository }}:{{ .Values.httpTarget.image.tag }}
+          command: ["pip", "install", "--target", "/tmp/pypackages", "flask"]
+          volumeMounts:
+            - name: pypackages
+              mountPath: /tmp/pypackages
+      containers:
+        - name: {{ .Values.httpTarget.name }}
+          image: {{ .Values.httpTarget.image.repository }}:{{ .Values.httpTarget.image.tag }}
+          command: ["python", "/app/app.py"]
+          env:
+            - name: PYTHONPATH
+              value: /tmp/pypackages
+          ports:
+            - containerPort: {{ .Values.httpTarget.service.port }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.httpTarget.service.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          volumeMounts:
+            - name: app
+              mountPath: /app/app.py
+              subPath: app.py
+            - name: pypackages
+              mountPath: /tmp/pypackages
+          resources:
+            limits:
+              memory: {{ .Values.httpTarget.resources.limits.memory }}
+              cpu: {{ .Values.httpTarget.resources.limits.cpu }}
+            requests:
+              memory: {{ .Values.httpTarget.resources.requests.memory }}
+              cpu: {{ .Values.httpTarget.resources.requests.cpu }}
+      volumes:
+        - name: app
+          configMap:
+            name: {{ .Values.httpTarget.name }}-app
+        - name: pypackages
+          emptyDir: {}
+{{- end }}

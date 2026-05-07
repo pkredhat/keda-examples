@@ -1,0 +1,36 @@
+{{- if .Values.demos.kafka.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.kafkaConsumer.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.kafkaConsumer.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.kafkaConsumer.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.kafkaConsumer.name }}
+    spec:
+      containers:
+        - name: {{ .Values.kafkaConsumer.name }}
+          image: {{ .Values.kafkaConsumer.image.repository }}:{{ .Values.kafkaConsumer.image.tag }}
+          command: ["/bin/sh", "/scripts/consumer.sh"]
+          volumeMounts:
+            - name: consumer-script
+              mountPath: /scripts
+          resources:
+            limits:
+              memory: {{ .Values.kafkaConsumer.resources.limits.memory }}
+              cpu: {{ .Values.kafkaConsumer.resources.limits.cpu }}
+            requests:
+              memory: {{ .Values.kafkaConsumer.resources.requests.memory }}
+              cpu: {{ .Values.kafkaConsumer.resources.requests.cpu }}
+      volumes:
+        - name: consumer-script
+          configMap:
+            name: {{ .Values.kafkaConsumer.name }}-script
+            defaultMode: 0755
+{{- end }}

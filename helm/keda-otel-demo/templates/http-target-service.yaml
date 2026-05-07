@@ -1,0 +1,13 @@
+{{- if .Values.demos.http.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.httpTarget.name }}-svc
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: {{ .Values.httpTarget.name }}
+  ports:
+    - port: {{ .Values.httpTarget.service.port }}
+      targetPort: {{ .Values.httpTarget.service.port }}
+{{- end }}

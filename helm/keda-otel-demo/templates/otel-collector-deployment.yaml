@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.otelCollector.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.otelCollector.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.otelCollector.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.otelCollector.name }}
+    spec:
+      containers:
+      - name: {{ .Values.otelCollector.name }}
+        image: "{{ .Values.otelCollector.image.repository }}:{{ .Values.otelCollector.image.tag }}"
+        imagePullPolicy: {{ .Values.otelCollector.image.pullPolicy }}
+        args:
+          - "--config=/etc/otel-collector-config.yaml"
+        ports:
+        - containerPort: {{ .Values.otelCollector.service.otlpGrpcPort }}
+          name: otlp-grpc
+        - containerPort: {{ .Values.otelCollector.service.otlpHttpPort }}
+          name: otlp-http
+        - containerPort: {{ .Values.otelCollector.service.prometheusPort }}
+          name: prometheus
+        volumeMounts:
+        - name: config
+          mountPath: /etc/otel-collector-config.yaml
+          subPath: otel-collector-config.yaml
+        resources:
+{{- toYaml .Values.otelCollector.resources | nindent 10 }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ .Values.otelCollector.name }}-config
