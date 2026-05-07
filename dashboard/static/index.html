@@ -761,33 +761,160 @@
         </div>
 
         <div class="row row-2">
-          <div class="card">
-            <div class="card-title">KEDA Autoscaling
-              <span class="keda-badge" :class="http.kedaEnabled ? 'on' : 'off'">
-                <span class="dot"></span>
-                {{ http.kedaEnabled ? 'ON' : 'OFF' }}
-              </span>
+          <div class="flip-container">
+            <div class="card flip-card" :class="{flipped: scaledobjectFlipped}">
+              <div class="flip-front">
+                <div style="margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--line);">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+                    <div style="display:flex;align-items:center;gap:0.5rem;">
+                      <span style="font-family:'Red Hat Display',sans-serif;font-weight:700;font-size:0.9rem;color:var(--ink);">KEDA Autoscaling</span>
+                      <span class="keda-badge" :class="http.kedaEnabled ? 'on' : 'off'">
+                        {{ http.kedaEnabled ? 'ON' : 'OFF' }}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    class="btn"
+                    :class="http.kedaEnabled ? 'gray' : 'green'"
+                    @click="httpToggleKeda"
+                    :disabled="loading">
+                    {{ http.kedaEnabled ? 'Disable Autoscaling' : 'Enable Autoscaling' }}
+                  </button>
+                  <div class="status-line" :class="httpKedaStatus.class">{{ httpKedaStatus.message }}</div>
+                  <p style="font-size:0.85rem;color:var(--muted);margin-top:0.75rem;">Trigger: <code>metrics-api</code> — 1 replica per 5 workers — max 20 replicas.</p>
+                </div>
+
+                <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+                  ⚙️ ScaledObject
+                  <button class="btn small gray" @click="scaledobjectFlipped = !scaledobjectFlipped">View JSON</button>
+                </div>
+                <div v-if="scaledobject.exists">
+                  <div class="info-row">
+                    <span class="info-label">Target</span>
+                    <span class="info-value">{{ scaledobject.scaleTarget }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Min / Max</span>
+                    <span class="info-value">{{ scaledobject.minReplicas }} / {{ scaledobject.maxReplicas }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Polling</span>
+                    <span class="info-value">{{ scaledobject.pollingInterval }}s</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Cooldown</span>
+                    <span class="info-value">{{ scaledobject.cooldownPeriod }}s</span>
+                  </div>
+                  <div style="margin-top:1rem;font-size:0.75rem;color:var(--muted);">
+                    <strong>Trigger:</strong> {{ scaledobject.triggers && scaledobject.triggers[0] ? scaledobject.triggers[0].type : 'N/A' }}
+                  </div>
+                </div>
+                <div v-else class="empty">ScaledObject not active</div>
+              </div>
+              <div class="flip-back">
+                <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+                  ⚙️ ScaledObject JSON
+                  <button class="btn small gray" @click="scaledobjectFlipped = !scaledobjectFlipped">Back</button>
+                </div>
+                <div class="code-block">
+                  <pre>{{ JSON.stringify(scaledobject, null, 2) }}</pre>
+                </div>
+              </div>
             </div>
-            <button class="btn" :class="http.kedaEnabled ? 'gray' : 'green'" @click="httpToggleKeda" :disabled="loading">
-              {{ http.kedaEnabled ? 'Disable' : 'Enable' }} KEDA
-            </button>
-            <div class="status-line" :class="httpKedaStatus.class">{{ httpKedaStatus.message }}</div>
-            <p style="font-size:0.85rem;color:var(--muted);margin-top:0.75rem;">Trigger: <code>metrics-api</code> — 1 replica per 5 workers — max 20 replicas.</p>
           </div>
 
           <div class="card">
             <div class="card-title">Target Pods ({{ httpPods.length }})</div>
-            <div v-if="httpPods.length === 0" class="empty">No pods running</div>
-            <table v-else>
-              <thead><tr><th>Name</th><th>Status</th><th>Age</th></tr></thead>
-              <tbody>
-                <tr v-for="pod in httpPods" :key="pod.name">
-                  <td class="mono">{{ pod.name }}</td>
-                  <td><span class="badge" :class="pod.status === 'Running' ? 'badge-ok' : 'badge-warn'">{{ pod.status }}</span></td>
-                  <td>{{ formatAge(pod.age) }}</td>
-                </tr>
-              </tbody>
-            </table>
+            <div class="pod-grid" v-if="httpPods.length > 0">
+              <transition-group name="pod-anim" tag="div" class="pod-grid-inner">
+                <div
+                  v-for="pod in httpPods.slice(0, 10)"
+                  :key="pod.name"
+                  class="pod-tile"
+                  :class="pod.status === 'Running' ? 'pod-running' : 'pod-pending'"
+                  :title="pod.name"
+                >
+                  <svg viewBox="0 0 24 24" class="pod-icon-svg" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="4"/>
+                    <circle cx="12" cy="10" r="3"/>
+                    <path d="M7 20c0-2.76 2.24-5 5-5s5 2.24 5 5"/>
+                  </svg>
+                  <span class="pod-tile-lbl">{{ pod.name.replace('http-target-','').substring(0,9) }}</span>
+                </div>
+              </transition-group>
+              <div v-if="httpPods.length > 10" class="pod-tile pod-tile-more">+{{ httpPods.length - 10 }}</div>
+            </div>
+            <div v-else class="pod-empty">No target pods running</div>
+
+            <div v-if="httpPods.length > 0" style="margin-top:1.5rem;">
+              <div class="card-title" style="margin-bottom:0.75rem;">Pod Details</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Age</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="pod in httpPods" :key="pod.name">
+                    <td class="mono">{{ pod.name }}</td>
+                    <td><span class="badge" :class="pod.status === 'Running' ? 'badge-ok' : 'badge-warn'">{{ pod.status }}</span></td>
+                    <td style="color:var(--muted);font-size:0.8rem;">{{ formatAge(pod.age) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div v-if="hpas.length > 0" style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--line);">
+              <div class="card-title" style="margin-bottom:0.75rem;">Horizontal Pod Autoscalers</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Target</th>
+                    <th>Current</th>
+                    <th>Desired</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="hpa in hpas" :key="hpa.name">
+                    <td class="mono">{{ hpa.name }}</td>
+                    <td style="font-size:0.8rem;">{{ hpa.target }}</td>
+                    <td style="font-weight:700;color:var(--brand-blue);">{{ hpa.current }}</td>
+                    <td style="font-weight:700;color:var(--ok);">{{ hpa.desired }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="row row-1">
+          <div class="card">
+            <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+              KEDA Events Log
+              <span style="font-size:0.75rem;font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0;">
+                {{ events.length }} events
+              </span>
+            </div>
+            <div style="max-height:500px;overflow-y:auto;">
+              <div class="event-header">
+                <div>Type</div>
+                <div>Reason</div>
+                <div>Object</div>
+                <div>Message</div>
+                <div>Age</div>
+              </div>
+              <div v-for="event in events" :key="event.time" class="event-row" :class="event.type">
+                <div class="event-type">{{ event.type }}</div>
+                <div>{{ event.reason }}</div>
+                <div class="event-obj">{{ event.object }}</div>
+                <div class="event-msg">{{ event.message }}</div>
+                <div class="event-time">{{ formatAge(event.time) }}</div>
+              </div>
+              <div v-if="events.length === 0" class="empty">No KEDA events yet</div>
+            </div>
           </div>
         </div>
       </div>
@@ -831,33 +958,160 @@
         </div>
 
         <div class="row row-2">
-          <div class="card">
-            <div class="card-title">KEDA Autoscaling
-              <span class="keda-badge" :class="pg.kedaEnabled ? 'on' : 'off'">
-                <span class="dot"></span>
-                {{ pg.kedaEnabled ? 'ON' : 'OFF' }}
-              </span>
+          <div class="flip-container">
+            <div class="card flip-card" :class="{flipped: scaledobjectFlipped}">
+              <div class="flip-front">
+                <div style="margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--line);">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+                    <div style="display:flex;align-items:center;gap:0.5rem;">
+                      <span style="font-family:'Red Hat Display',sans-serif;font-weight:700;font-size:0.9rem;color:var(--ink);">KEDA Autoscaling</span>
+                      <span class="keda-badge" :class="pg.kedaEnabled ? 'on' : 'off'">
+                        {{ pg.kedaEnabled ? 'ON' : 'OFF' }}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    class="btn"
+                    :class="pg.kedaEnabled ? 'gray' : 'green'"
+                    @click="pgToggleKeda"
+                    :disabled="loading">
+                    {{ pg.kedaEnabled ? 'Disable Autoscaling' : 'Enable Autoscaling' }}
+                  </button>
+                  <div class="status-line" :class="pgKedaStatus.class">{{ pgKedaStatus.message }}</div>
+                  <p style="font-size:0.85rem;color:var(--muted);margin-top:0.75rem;">Trigger: <code>postgresql</code> — 1 replica per 50 pending jobs — max 10 replicas.</p>
+                </div>
+
+                <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+                  ⚙️ ScaledObject
+                  <button class="btn small gray" @click="scaledobjectFlipped = !scaledobjectFlipped">View JSON</button>
+                </div>
+                <div v-if="scaledobject.exists">
+                  <div class="info-row">
+                    <span class="info-label">Target</span>
+                    <span class="info-value">{{ scaledobject.scaleTarget }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Min / Max</span>
+                    <span class="info-value">{{ scaledobject.minReplicas }} / {{ scaledobject.maxReplicas }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Polling</span>
+                    <span class="info-value">{{ scaledobject.pollingInterval }}s</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Cooldown</span>
+                    <span class="info-value">{{ scaledobject.cooldownPeriod }}s</span>
+                  </div>
+                  <div style="margin-top:1rem;font-size:0.75rem;color:var(--muted);">
+                    <strong>Trigger:</strong> {{ scaledobject.triggers && scaledobject.triggers[0] ? scaledobject.triggers[0].type : 'N/A' }}
+                  </div>
+                </div>
+                <div v-else class="empty">ScaledObject not active</div>
+              </div>
+              <div class="flip-back">
+                <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+                  ⚙️ ScaledObject JSON
+                  <button class="btn small gray" @click="scaledobjectFlipped = !scaledobjectFlipped">Back</button>
+                </div>
+                <div class="code-block">
+                  <pre>{{ JSON.stringify(scaledobject, null, 2) }}</pre>
+                </div>
+              </div>
             </div>
-            <button class="btn" :class="pg.kedaEnabled ? 'gray' : 'green'" @click="pgToggleKeda" :disabled="loading">
-              {{ pg.kedaEnabled ? 'Disable' : 'Enable' }} KEDA
-            </button>
-            <div class="status-line" :class="pgKedaStatus.class">{{ pgKedaStatus.message }}</div>
-            <p style="font-size:0.85rem;color:var(--muted);margin-top:0.75rem;">Trigger: <code>postgresql</code> — 1 replica per 50 pending jobs — max 10 replicas.</p>
           </div>
 
           <div class="card">
             <div class="card-title">Worker Pods ({{ pgPods.length }})</div>
-            <div v-if="pgPods.length === 0" class="empty">No pods running</div>
-            <table v-else>
-              <thead><tr><th>Name</th><th>Status</th><th>Age</th></tr></thead>
-              <tbody>
-                <tr v-for="pod in pgPods" :key="pod.name">
-                  <td class="mono">{{ pod.name }}</td>
-                  <td><span class="badge" :class="pod.status === 'Running' ? 'badge-ok' : 'badge-warn'">{{ pod.status }}</span></td>
-                  <td>{{ formatAge(pod.age) }}</td>
-                </tr>
-              </tbody>
-            </table>
+            <div class="pod-grid" v-if="pgPods.length > 0">
+              <transition-group name="pod-anim" tag="div" class="pod-grid-inner">
+                <div
+                  v-for="pod in pgPods.slice(0, 10)"
+                  :key="pod.name"
+                  class="pod-tile"
+                  :class="pod.status === 'Running' ? 'pod-running' : 'pod-pending'"
+                  :title="pod.name"
+                >
+                  <svg viewBox="0 0 24 24" class="pod-icon-svg" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="4"/>
+                    <circle cx="12" cy="10" r="3"/>
+                    <path d="M7 20c0-2.76 2.24-5 5-5s5 2.24 5 5"/>
+                  </svg>
+                  <span class="pod-tile-lbl">{{ pod.name.replace('pg-worker-','').substring(0,9) }}</span>
+                </div>
+              </transition-group>
+              <div v-if="pgPods.length > 10" class="pod-tile pod-tile-more">+{{ pgPods.length - 10 }}</div>
+            </div>
+            <div v-else class="pod-empty">No worker pods running</div>
+
+            <div v-if="pgPods.length > 0" style="margin-top:1.5rem;">
+              <div class="card-title" style="margin-bottom:0.75rem;">Pod Details</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Age</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="pod in pgPods" :key="pod.name">
+                    <td class="mono">{{ pod.name }}</td>
+                    <td><span class="badge" :class="pod.status === 'Running' ? 'badge-ok' : 'badge-warn'">{{ pod.status }}</span></td>
+                    <td style="color:var(--muted);font-size:0.8rem;">{{ formatAge(pod.age) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div v-if="hpas.length > 0" style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--line);">
+              <div class="card-title" style="margin-bottom:0.75rem;">Horizontal Pod Autoscalers</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Target</th>
+                    <th>Current</th>
+                    <th>Desired</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="hpa in hpas" :key="hpa.name">
+                    <td class="mono">{{ hpa.name }}</td>
+                    <td style="font-size:0.8rem;">{{ hpa.target }}</td>
+                    <td style="font-weight:700;color:var(--brand-blue);">{{ hpa.current }}</td>
+                    <td style="font-weight:700;color:var(--ok);">{{ hpa.desired }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="row row-1">
+          <div class="card">
+            <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+              KEDA Events Log
+              <span style="font-size:0.75rem;font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0;">
+                {{ events.length }} events
+              </span>
+            </div>
+            <div style="max-height:500px;overflow-y:auto;">
+              <div class="event-header">
+                <div>Type</div>
+                <div>Reason</div>
+                <div>Object</div>
+                <div>Message</div>
+                <div>Age</div>
+              </div>
+              <div v-for="event in events" :key="event.time" class="event-row" :class="event.type">
+                <div class="event-type">{{ event.type }}</div>
+                <div>{{ event.reason }}</div>
+                <div class="event-obj">{{ event.object }}</div>
+                <div class="event-msg">{{ event.message }}</div>
+                <div class="event-time">{{ formatAge(event.time) }}</div>
+              </div>
+              <div v-if="events.length === 0" class="empty">No KEDA events yet</div>
+            </div>
           </div>
         </div>
       </div>
@@ -892,33 +1146,160 @@
         </div>
 
         <div class="row row-2">
-          <div class="card">
-            <div class="card-title">KEDA Autoscaling
-              <span class="keda-badge" :class="kafka.kedaEnabled ? 'on' : 'off'">
-                <span class="dot"></span>
-                {{ kafka.kedaEnabled ? 'ON' : 'OFF' }}
-              </span>
+          <div class="flip-container">
+            <div class="card flip-card" :class="{flipped: scaledobjectFlipped}">
+              <div class="flip-front">
+                <div style="margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--line);">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+                    <div style="display:flex;align-items:center;gap:0.5rem;">
+                      <span style="font-family:'Red Hat Display',sans-serif;font-weight:700;font-size:0.9rem;color:var(--ink);">KEDA Autoscaling</span>
+                      <span class="keda-badge" :class="kafka.kedaEnabled ? 'on' : 'off'">
+                        {{ kafka.kedaEnabled ? 'ON' : 'OFF' }}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    class="btn"
+                    :class="kafka.kedaEnabled ? 'gray' : 'green'"
+                    @click="kafkaToggleKeda"
+                    :disabled="loading">
+                    {{ kafka.kedaEnabled ? 'Disable Autoscaling' : 'Enable Autoscaling' }}
+                  </button>
+                  <div class="status-line" :class="kafkaKedaStatus.class">{{ kafkaKedaStatus.message }}</div>
+                  <p style="font-size:0.85rem;color:var(--muted);margin-top:0.75rem;">Trigger: <code>kafka</code> — 1 replica per 500 messages lag — max 10 replicas.</p>
+                </div>
+
+                <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+                  ⚙️ ScaledObject
+                  <button class="btn small gray" @click="scaledobjectFlipped = !scaledobjectFlipped">View JSON</button>
+                </div>
+                <div v-if="scaledobject.exists">
+                  <div class="info-row">
+                    <span class="info-label">Target</span>
+                    <span class="info-value">{{ scaledobject.scaleTarget }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Min / Max</span>
+                    <span class="info-value">{{ scaledobject.minReplicas }} / {{ scaledobject.maxReplicas }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Polling</span>
+                    <span class="info-value">{{ scaledobject.pollingInterval }}s</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Cooldown</span>
+                    <span class="info-value">{{ scaledobject.cooldownPeriod }}s</span>
+                  </div>
+                  <div style="margin-top:1rem;font-size:0.75rem;color:var(--muted);">
+                    <strong>Trigger:</strong> {{ scaledobject.triggers && scaledobject.triggers[0] ? scaledobject.triggers[0].type : 'N/A' }}
+                  </div>
+                </div>
+                <div v-else class="empty">ScaledObject not active</div>
+              </div>
+              <div class="flip-back">
+                <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+                  ⚙️ ScaledObject JSON
+                  <button class="btn small gray" @click="scaledobjectFlipped = !scaledobjectFlipped">Back</button>
+                </div>
+                <div class="code-block">
+                  <pre>{{ JSON.stringify(scaledobject, null, 2) }}</pre>
+                </div>
+              </div>
             </div>
-            <button class="btn" :class="kafka.kedaEnabled ? 'gray' : 'green'" @click="kafkaToggleKeda" :disabled="loading">
-              {{ kafka.kedaEnabled ? 'Disable' : 'Enable' }} KEDA
-            </button>
-            <div class="status-line" :class="kafkaKedaStatus.class">{{ kafkaKedaStatus.message }}</div>
-            <p style="font-size:0.85rem;color:var(--muted);margin-top:0.75rem;">Trigger: <code>kafka</code> — 1 replica per 500 messages lag — max 10 replicas.</p>
           </div>
 
           <div class="card">
             <div class="card-title">Consumer Pods ({{ kafkaPods.length }})</div>
-            <div v-if="kafkaPods.length === 0" class="empty">No pods running</div>
-            <table v-else>
-              <thead><tr><th>Name</th><th>Status</th><th>Age</th></tr></thead>
-              <tbody>
-                <tr v-for="pod in kafkaPods" :key="pod.name">
-                  <td class="mono">{{ pod.name }}</td>
-                  <td><span class="badge" :class="pod.status === 'Running' ? 'badge-ok' : 'badge-warn'">{{ pod.status }}</span></td>
-                  <td>{{ formatAge(pod.age) }}</td>
-                </tr>
-              </tbody>
-            </table>
+            <div class="pod-grid" v-if="kafkaPods.length > 0">
+              <transition-group name="pod-anim" tag="div" class="pod-grid-inner">
+                <div
+                  v-for="pod in kafkaPods.slice(0, 10)"
+                  :key="pod.name"
+                  class="pod-tile"
+                  :class="pod.status === 'Running' ? 'pod-running' : 'pod-pending'"
+                  :title="pod.name"
+                >
+                  <svg viewBox="0 0 24 24" class="pod-icon-svg" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="4"/>
+                    <circle cx="12" cy="10" r="3"/>
+                    <path d="M7 20c0-2.76 2.24-5 5-5s5 2.24 5 5"/>
+                  </svg>
+                  <span class="pod-tile-lbl">{{ pod.name.replace('kafka-consumer-','').substring(0,9) }}</span>
+                </div>
+              </transition-group>
+              <div v-if="kafkaPods.length > 10" class="pod-tile pod-tile-more">+{{ kafkaPods.length - 10 }}</div>
+            </div>
+            <div v-else class="pod-empty">No consumer pods running</div>
+
+            <div v-if="kafkaPods.length > 0" style="margin-top:1.5rem;">
+              <div class="card-title" style="margin-bottom:0.75rem;">Pod Details</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Age</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="pod in kafkaPods" :key="pod.name">
+                    <td class="mono">{{ pod.name }}</td>
+                    <td><span class="badge" :class="pod.status === 'Running' ? 'badge-ok' : 'badge-warn'">{{ pod.status }}</span></td>
+                    <td style="color:var(--muted);font-size:0.8rem;">{{ formatAge(pod.age) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div v-if="hpas.length > 0" style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--line);">
+              <div class="card-title" style="margin-bottom:0.75rem;">Horizontal Pod Autoscalers</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Target</th>
+                    <th>Current</th>
+                    <th>Desired</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="hpa in hpas" :key="hpa.name">
+                    <td class="mono">{{ hpa.name }}</td>
+                    <td style="font-size:0.8rem;">{{ hpa.target }}</td>
+                    <td style="font-weight:700;color:var(--brand-blue);">{{ hpa.current }}</td>
+                    <td style="font-weight:700;color:var(--ok);">{{ hpa.desired }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="row row-1">
+          <div class="card">
+            <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+              KEDA Events Log
+              <span style="font-size:0.75rem;font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0;">
+                {{ events.length }} events
+              </span>
+            </div>
+            <div style="max-height:500px;overflow-y:auto;">
+              <div class="event-header">
+                <div>Type</div>
+                <div>Reason</div>
+                <div>Object</div>
+                <div>Message</div>
+                <div>Age</div>
+              </div>
+              <div v-for="event in events" :key="event.time" class="event-row" :class="event.type">
+                <div class="event-type">{{ event.type }}</div>
+                <div>{{ event.reason }}</div>
+                <div class="event-obj">{{ event.object }}</div>
+                <div class="event-msg">{{ event.message }}</div>
+                <div class="event-time">{{ formatAge(event.time) }}</div>
+              </div>
+              <div v-if="events.length === 0" class="empty">No KEDA events yet</div>
+            </div>
           </div>
         </div>
       </div>
