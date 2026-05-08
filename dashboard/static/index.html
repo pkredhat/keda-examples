@@ -82,15 +82,15 @@
     .main {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 2.5rem 2rem;
+      padding: 3rem 2.5rem;
       display: flex;
       flex-direction: column;
-      gap: 3rem;
+      gap: 4rem;
     }
 
     .row {
       display: grid;
-      gap: 2.5rem;
+      gap: 3rem;
       align-items: start;
     }
     .row-2 { grid-template-columns: 1fr 1fr; }
@@ -100,7 +100,7 @@
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 16px;
-      padding: 2.5rem;
+      padding: 3rem;
       box-shadow: var(--shadow);
       display: flex;
       flex-direction: column;
@@ -138,6 +138,13 @@
     .btn.gray:hover { background: #37474f; }
     .btn:active { transform: scale(0.98); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn.small {
+      padding: 6px 14px;
+      font-size: 0.75rem;
+      width: auto;
+      margin-bottom: 0;
+      display: inline-block;
+    }
 
     .status-line {
       font-size: 0.85rem;
