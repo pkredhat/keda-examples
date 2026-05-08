@@ -453,10 +453,10 @@
         <div class="row row-2">
           <div class="card">
             <div class="card-title">Generate Load</div>
-            <button class="btn" @click="otelAddOrders(100)" :disabled="loading">⚡ Add 100 Orders</button>
-            <button class="btn" @click="otelAddOrders(300)" :disabled="loading">🚀 Add 300 Orders</button>
-            <button class="btn" @click="otelAddOrders(500)" :disabled="loading">💥 Add 500 Orders</button>
-            <button class="btn" @click="otelAddOrders(1000)" :disabled="loading">🔥 Add 1,000 Orders</button>
+            <button class="btn" @click="otelAddOrders(1000)" :disabled="loading">⚡ Add 1,000 Orders</button>
+            <button class="btn" @click="otelAddOrders(3000)" :disabled="loading">🚀 Add 3,000 Orders</button>
+            <button class="btn" @click="otelAddOrders(5000)" :disabled="loading">💥 Add 5,000 Orders</button>
+            <button class="btn" @click="otelAddOrders(10000)" :disabled="loading">🔥 Add 10,000 Orders</button>
             <button class="btn gray" @click="otelClearLoad" :disabled="loading">🗑️ Clear Load</button>
             <div class="status-line" :class="otelStatus.class">{{ otelStatus.message }}</div>
           </div>
